@@ -1,5 +1,5 @@
 import { Complaint } from '../models/Complaint.js';
-import { sendStatusUpdateEmail } from '../services/emailService.js';
+import { sendStatusUpdateEmail, sendCitizenComplaintConfirmationEmail, sendEmailNotification } from '../services/emailService.js';
 
 /**
  * Submit or Finalize Complaint
@@ -10,11 +10,7 @@ export async function submitComplaint(req, res) {
     const data = req.body || {};
     const complaintId = data.complaintId || data.complaint_id;
     const incident_id = data.incident_id || data.s3Key;
-    const userEmail = (data.userEmail || data.user_email || '').trim().toLowerCase();
-
-    if (!userEmail) {
-      return res.status(400).json({ error: 'Email is required to submit and track a complaint' });
-    }
+    const userEmail = (data.userEmail || data.user_email || 'citizen@civicflow.ai').trim().toLowerCase();
 
     let complaint = null;
 
@@ -29,16 +25,45 @@ export async function submitComplaint(req, res) {
       const count = await Complaint.countDocuments();
       const newId = `CF-2026-${String(count + 1).padStart(4, '0')}`;
 
+      let locAddr = '';
+      let locLat = parseFloat(data.latitude) || null;
+      let locLon = parseFloat(data.longitude) || null;
+
+      if (data.location && typeof data.location === 'object') {
+        locAddr = data.location.address || '';
+        if (data.location.latitude != null) locLat = parseFloat(data.location.latitude);
+        if (data.location.longitude != null) locLon = parseFloat(data.location.longitude);
+      } else if (typeof data.location === 'string') {
+        try {
+          const parsed = JSON.parse(data.location);
+          if (parsed && typeof parsed === 'object') {
+            locAddr = parsed.address || '';
+            if (parsed.latitude != null) locLat = parseFloat(parsed.latitude);
+            if (parsed.longitude != null) locLon = parseFloat(parsed.longitude);
+          } else {
+            locAddr = data.location;
+          }
+        } catch (e) {
+          locAddr = data.location;
+        }
+      }
+
+      if (!locAddr) locAddr = data.address || 'Reported Location';
+
       complaint = new Complaint({
         complaintId: newId,
         description: data.description || data.userNote || 'Civic issue report',
         category: data.category || 'Pothole',
         department: data.department || 'Roads & Public Works',
         priority: data.priority || 'high',
-        location: data.location || data.address || 'Reported Location',
-        address: data.address || '',
-        latitude: parseFloat(data.latitude) || null,
-        longitude: parseFloat(data.longitude) || null,
+        location: {
+          address: locAddr,
+          latitude: locLat,
+          longitude: locLon,
+        },
+        address: locAddr,
+        latitude: locLat,
+        longitude: locLon,
         user_name: data.userName || data.user_name || 'Citizen',
         user_email: userEmail,
         imageUrl: data.imageUrl || '',
@@ -53,6 +78,28 @@ export async function submitComplaint(req, res) {
         ],
       });
       await complaint.save();
+
+      // Dispatch notifications for new complaint
+      if (userEmail) {
+        sendCitizenComplaintConfirmationEmail({
+          recipient: userEmail,
+          complaintId: complaint.complaintId,
+          category: complaint.category,
+          priority: complaint.priority,
+          department: complaint.department,
+          description: complaint.description,
+          address: complaint.address || 'Reported Location',
+          status: complaint.status,
+        });
+      }
+
+      sendEmailNotification({
+        incident_id: complaint.complaintId,
+        category: complaint.category,
+        severity: (complaint.priority || 'MEDIUM').toUpperCase(),
+        department: complaint.department,
+        description: complaint.description,
+      });
     } else {
       // Update existing complaint
       if (data.userNote) complaint.user_note = data.userNote;
@@ -61,6 +108,13 @@ export async function submitComplaint(req, res) {
       if (data.latitude) complaint.latitude = parseFloat(data.latitude);
       if (data.longitude) complaint.longitude = parseFloat(data.longitude);
       if (data.address) complaint.address = data.address;
+      if (data.location && typeof data.location === 'object') {
+        complaint.location = {
+          address: data.location.address || complaint.address || '',
+          latitude: parseFloat(data.location.latitude) || complaint.latitude || null,
+          longitude: parseFloat(data.location.longitude) || complaint.longitude || null,
+        };
+      }
       if (data.status) complaint.status = data.status;
 
       complaint.history.push({
@@ -124,16 +178,18 @@ export async function getComplaintById(req, res) {
     const email = (req.query.email || '').trim().toLowerCase();
     if (!id) return res.status(400).json({ error: 'Missing complaint ID' });
 
-    if (!email) return res.status(400).json({ error: 'Email is required to track a complaint' });
-
-    let complaint = await Complaint.findOne({ complaintId: id, user_email: email });
+    let complaint = await Complaint.findOne({ complaintId: id });
 
     if (!complaint) {
-      complaint = await Complaint.findOne({ incident_id: id, user_email: email });
+      complaint = await Complaint.findOne({ incident_id: id });
     }
 
     if (!complaint && id.match(/^[0-9a-fA-F]{24}$/)) {
-      complaint = await Complaint.findOne({ _id: id, user_email: email });
+      complaint = await Complaint.findById(id);
+    }
+
+    if (!complaint && email) {
+      complaint = await Complaint.findOne({ user_email: email });
     }
 
     if (!complaint) {

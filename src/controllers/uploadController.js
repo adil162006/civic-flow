@@ -5,7 +5,7 @@ import { Complaint } from '../models/Complaint.js';
 import { analyzeCivicComplaint } from '../services/aiService.js';
 import { uploadToCloudinary } from '../services/cloudinaryService.js';
 import { checkForDuplicateComplaint } from '../utils/duplicateDetector.js';
-import { sendEmailNotification } from '../services/emailService.js';
+import { sendEmailNotification, sendCitizenComplaintConfirmationEmail } from '../services/emailService.js';
 
 /**
  * Handle /upload/presign (Generates presigned upload URL or endpoint metadata for frontend compatibility)
@@ -37,16 +37,51 @@ export async function handleDirectUpload(req, res) {
   try {
     const file = req.file;
     const userDescription = req.body.description || req.body.userNote || req.body.user_note || '';
-    const rawLocation = req.body.location || req.body.address || '';
-    const userEmail = (req.body.userEmail || req.body.user_email || '').trim().toLowerCase();
-    const parsedLatitude = Number(req.body.latitude);
-    const parsedLongitude = Number(req.body.longitude);
-    const latitude = Number.isFinite(parsedLatitude) ? parsedLatitude : null;
-    const longitude = Number.isFinite(parsedLongitude) ? parsedLongitude : null;
+    let locationData = {
+      address: '',
+      latitude: null,
+      longitude: null,
+    };
 
-    if (!userEmail) {
-      return res.status(400).json({ error: 'Email is required to receive complaint updates' });
+    if (req.body.location) {
+      if (typeof req.body.location === 'object') {
+        locationData = { ...req.body.location };
+      } else if (typeof req.body.location === 'string') {
+        try {
+          const parsed = JSON.parse(req.body.location);
+          if (parsed && typeof parsed === 'object') {
+            locationData = { ...parsed };
+          } else {
+            locationData.address = req.body.location;
+          }
+        } catch (e) {
+          locationData.address = req.body.location;
+        }
+      }
     }
+
+    if (!locationData.address) {
+      locationData.address = req.body.address || '';
+    }
+    if (locationData.latitude === null || locationData.latitude === undefined) {
+      const parsedLat = Number(req.body.latitude);
+      locationData.latitude = Number.isFinite(parsedLat) ? parsedLat : null;
+    } else {
+      locationData.latitude = Number(locationData.latitude);
+      if (!Number.isFinite(locationData.latitude)) locationData.latitude = null;
+    }
+    if (locationData.longitude === null || locationData.longitude === undefined) {
+      const parsedLon = Number(req.body.longitude);
+      locationData.longitude = Number.isFinite(parsedLon) ? parsedLon : null;
+    } else {
+      locationData.longitude = Number(locationData.longitude);
+      if (!Number.isFinite(locationData.longitude)) locationData.longitude = null;
+    }
+
+    const latitude = locationData.latitude;
+    const longitude = locationData.longitude;
+    const rawLocation = locationData.address;
+    const userEmail = (req.body.userEmail || req.body.user_email || 'citizen@civicflow.ai').trim().toLowerCase();
 
     let imageUrl = '';
     let s3Key = '';
@@ -108,8 +143,12 @@ export async function handleDirectUpload(req, res) {
       aiConfidence: aiResult.confidence,
       aiReason: aiResult.reason,
       aiSummary: aiResult.summary,
-      location: aiResult.location,
-      address: rawLocation,
+      location: {
+        address: rawLocation || aiResult.location || 'Reported Location',
+        latitude,
+        longitude,
+      },
+      address: rawLocation || aiResult.location || '',
       latitude,
       longitude,
       status: 'AI Verified',
@@ -147,7 +186,8 @@ export async function handleDirectUpload(req, res) {
       );
     }
 
-    // 6. Send Email Notification
+    // 6. Send Email Notifications
+    // Notify Ops Team
     sendEmailNotification({
       incident_id: complaintId,
       category: aiResult.category,
@@ -155,6 +195,20 @@ export async function handleDirectUpload(req, res) {
       department: aiResult.department,
       description: aiResult.reason,
     });
+
+    // Notify Reporting Citizen
+    if (userEmail) {
+      sendCitizenComplaintConfirmationEmail({
+        recipient: userEmail,
+        complaintId,
+        category: aiResult.category,
+        priority: aiResult.priority,
+        department: aiResult.department,
+        description: userDescription || aiResult.summary,
+        address: rawLocation || aiResult.location || 'Reported Location',
+        status: newComplaint.status,
+      });
+    }
 
     return res.status(200).json({
       success: true,

@@ -61,8 +61,18 @@ const complaintSchema = new mongoose.Schema(
       default: '',
     },
     location: {
-      type: String,
-      default: 'Reported Location',
+      address: {
+        type: String,
+        default: '',
+      },
+      latitude: {
+        type: Number,
+        default: null,
+      },
+      longitude: {
+        type: Number,
+        default: null,
+      },
     },
     address: {
       type: String,
