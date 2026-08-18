@@ -122,3 +122,23 @@ Please take appropriate action.
     console.error(`[Nodemailer] Failed to send complaint notification email for #${incident_id}:`, error.message);
   }
 }
+
+/**
+ * Notify the reporting citizen after an admin changes a complaint's status.
+ */
+export async function sendStatusUpdateEmail({ recipient, complaintId, status, department, message }) {
+  if (!recipient) return;
+
+  const transporter = getTransporter();
+  const fromEmail = process.env.EMAIL_FROM || '"CivicFlow AI" <no-reply@civicflow.ai>';
+  const subject = `Update for complaint #${complaintId}: ${status}`;
+  const textBody = `Your CivicFlow complaint has been updated.\n\nComplaint ID: ${complaintId}\nNew status: ${status}\nDepartment: ${department}\nUpdate: ${message}\n\nYou can track your complaint using your email and complaint ID.`;
+  const htmlBody = `<div style="font-family:Arial,sans-serif;max-width:600px;padding:24px;color:#1f2937"><h2 style="color:#047857">Your complaint has been updated</h2><p><strong>Complaint ID:</strong> ${complaintId}</p><p><strong>New status:</strong> ${status}</p><p><strong>Department:</strong> ${department}</p><p style="padding:12px;background:#f0fdf4;border-left:4px solid #059669">${message}</p><p style="color:#64748b">Use your email and complaint ID in CivicFlow to track future updates.</p></div>`;
+
+  try {
+    await transporter.sendMail({ from: fromEmail, to: recipient, subject, text: textBody, html: htmlBody });
+    console.log(`[Nodemailer] Status update sent to ${recipient} for #${complaintId}`);
+  } catch (error) {
+    console.error(`[Nodemailer] Failed status update for #${complaintId}:`, error.message);
+  }
+}

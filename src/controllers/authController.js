@@ -4,6 +4,10 @@ import { Otp } from '../models/Otp.js';
 import { User } from '../models/User.js';
 import { sendOtpEmail } from '../services/emailService.js';
 
+// Demo-only credentials for the hackathon admin portal.
+export const DEMO_ADMIN_EMAIL = 'admin@civicflow.ai';
+export const DEMO_ADMIN_PASSWORD = 'admin123';
+
 function formatIdentifier(input) {
   if (!input) return '';
   let str = input.trim();
@@ -78,7 +82,7 @@ export async function handleLogin(req, res) {
     const cleanEmail = email.toLowerCase().trim();
 
     // Demo Admin Bypass for Hackathon
-    if (cleanEmail === 'admin@civicflow.ai' && password === 'admin123') {
+    if (cleanEmail === DEMO_ADMIN_EMAIL && password === DEMO_ADMIN_PASSWORD) {
       const secret = process.env.JWT_SECRET || 'civicai-super-secret-jwt-key-2026';
       const token = jwt.sign({ id: 'usr_admin', email: cleanEmail, role: 'admin' }, secret, { expiresIn: '7d' });
       return res.status(200).json({

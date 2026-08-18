@@ -1,4 +1,5 @@
 import { Complaint } from '../models/Complaint.js';
+import { sendStatusUpdateEmail } from '../services/emailService.js';
 
 /**
  * Submit or Finalize Complaint
@@ -9,6 +10,11 @@ export async function submitComplaint(req, res) {
     const data = req.body || {};
     const complaintId = data.complaintId || data.complaint_id;
     const incident_id = data.incident_id || data.s3Key;
+    const userEmail = (data.userEmail || data.user_email || '').trim().toLowerCase();
+
+    if (!userEmail) {
+      return res.status(400).json({ error: 'Email is required to submit and track a complaint' });
+    }
 
     let complaint = null;
 
@@ -34,7 +40,7 @@ export async function submitComplaint(req, res) {
         latitude: parseFloat(data.latitude) || null,
         longitude: parseFloat(data.longitude) || null,
         user_name: data.userName || data.user_name || 'Citizen',
-        user_phone: data.userPhone || data.user_phone || '',
+        user_email: userEmail,
         imageUrl: data.imageUrl || '',
         status: 'Submitted',
         history: [
@@ -51,7 +57,7 @@ export async function submitComplaint(req, res) {
       // Update existing complaint
       if (data.userNote) complaint.user_note = data.userNote;
       if (data.userName) complaint.user_name = data.userName;
-      if (data.userPhone) complaint.user_phone = data.userPhone;
+      if (userEmail) complaint.user_email = userEmail;
       if (data.latitude) complaint.latitude = parseFloat(data.latitude);
       if (data.longitude) complaint.longitude = parseFloat(data.longitude);
       if (data.address) complaint.address = data.address;
@@ -87,10 +93,10 @@ export async function submitComplaint(req, res) {
  */
 export async function getComplaints(req, res) {
   try {
-    const { phone, status, category, priority } = req.query;
+    const { email, status, category, priority } = req.query;
     const filter = {};
 
-    if (phone) filter.user_phone = phone;
+    if (email) filter.user_email = email.toLowerCase().trim();
     if (status) filter.status = new RegExp(status, 'i');
     if (priority) filter.priority = new RegExp(priority, 'i');
     if (category) filter.category = new RegExp(category, 'i');
@@ -115,16 +121,19 @@ export async function getComplaints(req, res) {
 export async function getComplaintById(req, res) {
   try {
     const id = req.params.id;
+    const email = (req.query.email || '').trim().toLowerCase();
     if (!id) return res.status(400).json({ error: 'Missing complaint ID' });
 
-    let complaint = await Complaint.findOne({ complaintId: id });
+    if (!email) return res.status(400).json({ error: 'Email is required to track a complaint' });
+
+    let complaint = await Complaint.findOne({ complaintId: id, user_email: email });
 
     if (!complaint) {
-      complaint = await Complaint.findOne({ incident_id: id });
+      complaint = await Complaint.findOne({ incident_id: id, user_email: email });
     }
 
     if (!complaint && id.match(/^[0-9a-fA-F]{24}$/)) {
-      complaint = await Complaint.findById(id);
+      complaint = await Complaint.findOne({ _id: id, user_email: email });
     }
 
     if (!complaint) {
@@ -178,6 +187,14 @@ export async function updateComplaintStatus(req, res) {
     });
 
     await complaint.save();
+
+    await sendStatusUpdateEmail({
+      recipient: complaint.user_email,
+      complaintId: complaint.complaintId,
+      status: complaint.status,
+      department: complaint.department,
+      message: logMessage,
+    });
 
     return res.status(200).json({
       success: true,

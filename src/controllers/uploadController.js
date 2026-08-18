@@ -38,8 +38,13 @@ export async function handleDirectUpload(req, res) {
     const file = req.file;
     const userDescription = req.body.description || req.body.userNote || req.body.user_note || '';
     const rawLocation = req.body.location || req.body.address || '';
+    const userEmail = (req.body.userEmail || req.body.user_email || '').trim().toLowerCase();
     const latitude = parseFloat(req.body.latitude) || null;
     const longitude = parseFloat(req.body.longitude) || null;
+
+    if (!userEmail) {
+      return res.status(400).json({ error: 'Email is required to receive complaint updates' });
+    }
 
     let imageUrl = '';
     let s3Key = '';
@@ -123,7 +128,7 @@ export async function handleDirectUpload(req, res) {
         },
       ],
       user_name: req.body.userName || req.body.user_name || 'Citizen',
-      user_phone: req.body.userPhone || req.body.user_phone || '',
+      user_email: userEmail,
       user_note: userDescription,
     });
 
