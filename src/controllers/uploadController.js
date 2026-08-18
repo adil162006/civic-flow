@@ -39,8 +39,10 @@ export async function handleDirectUpload(req, res) {
     const userDescription = req.body.description || req.body.userNote || req.body.user_note || '';
     const rawLocation = req.body.location || req.body.address || '';
     const userEmail = (req.body.userEmail || req.body.user_email || '').trim().toLowerCase();
-    const latitude = parseFloat(req.body.latitude) || null;
-    const longitude = parseFloat(req.body.longitude) || null;
+    const parsedLatitude = Number(req.body.latitude);
+    const parsedLongitude = Number(req.body.longitude);
+    const latitude = Number.isFinite(parsedLatitude) ? parsedLatitude : null;
+    const longitude = Number.isFinite(parsedLongitude) ? parsedLongitude : null;
 
     if (!userEmail) {
       return res.status(400).json({ error: 'Email is required to receive complaint updates' });

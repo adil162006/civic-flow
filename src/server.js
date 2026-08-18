@@ -8,6 +8,7 @@ import authRoutes from './routes/authRoutes.js';
 import uploadRoutes from './routes/uploadRoutes.js';
 import complaintRoutes from './routes/complaintRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
+import locationRoutes from './routes/locationRoutes.js';
 
 dotenv.config();
 
@@ -60,6 +61,9 @@ app.use('/api/complaints', complaintRoutes);
 
 app.use('/admin', adminRoutes);
 app.use('/api/admin', adminRoutes);
+
+app.use(locationRoutes);
+app.use('/api', locationRoutes);
 
 // Health Endpoint
 app.get(['/health', '/api/health'], (req, res) => {
