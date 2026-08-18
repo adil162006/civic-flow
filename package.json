@@ -1,0 +1,35 @@
+{
+  "name": "civicai-mern-backend",
+  "version": "1.0.0",
+  "description": "CivicAI MERN Stack Backend with MongoDB and Google Gemini / Groq AI integration",
+  "main": "src/server.js",
+  "type": "module",
+  "scripts": {
+    "start": "nodemon src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "keywords": [
+    "civicai",
+    "mern",
+    "express",
+    "mongodb",
+    "gemini",
+    "groq"
+  ],
+  "author": "CivicAI Team",
+  "license": "ISC",
+  "dependencies": {
+    "@google/genai": "latest",
+    "bcryptjs": "^2.4.3",
+    "cloudinary": "^2.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.3.1",
+    "multer": "^1.4.5-lts.1",
+    "nodemailer": "^6.9.13",
+    "nodemon": "^3.1.14",
+    "uuid": "^9.0.1"
+  }
+}
