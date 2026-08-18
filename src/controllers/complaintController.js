@@ -1,5 +1,10 @@
-import { Complaint } from '../models/Complaint.js';
-import { sendStatusUpdateEmail, sendCitizenComplaintConfirmationEmail, sendEmailNotification } from '../services/emailService.js';
+import { Complaint } from "../models/Complaint.js";
+import {
+  sendStatusUpdateEmail,
+  sendCitizenComplaintConfirmationEmail,
+  sendEmailNotification,
+} from "../services/emailService.js";
+import { uploadToCloudinary } from "../services/cloudinaryService.js";
 
 /**
  * Submit or Finalize Complaint
@@ -10,7 +15,13 @@ export async function submitComplaint(req, res) {
     const data = req.body || {};
     const complaintId = data.complaintId || data.complaint_id;
     const incident_id = data.incident_id || data.s3Key;
-    const userEmail = (data.userEmail || data.user_email || 'citizen@civicflow.ai').trim().toLowerCase();
+    const userEmail = (
+      data.userEmail ||
+      data.user_email ||
+      "citizen@civicflow.ai"
+    )
+      .trim()
+      .toLowerCase();
 
     let complaint = null;
 
@@ -23,21 +34,23 @@ export async function submitComplaint(req, res) {
     if (!complaint) {
       // Create new complaint
       const count = await Complaint.countDocuments();
-      const newId = `CF-2026-${String(count + 1).padStart(4, '0')}`;
+      const newId = `CF-2026-${String(count + 1).padStart(4, "0")}`;
 
-      let locAddr = '';
+      let locAddr = "";
       let locLat = parseFloat(data.latitude) || null;
       let locLon = parseFloat(data.longitude) || null;
 
-      if (data.location && typeof data.location === 'object') {
-        locAddr = data.location.address || '';
-        if (data.location.latitude != null) locLat = parseFloat(data.location.latitude);
-        if (data.location.longitude != null) locLon = parseFloat(data.location.longitude);
-      } else if (typeof data.location === 'string') {
+      if (data.location && typeof data.location === "object") {
+        locAddr = data.location.address || "";
+        if (data.location.latitude != null)
+          locLat = parseFloat(data.location.latitude);
+        if (data.location.longitude != null)
+          locLon = parseFloat(data.location.longitude);
+      } else if (typeof data.location === "string") {
         try {
           const parsed = JSON.parse(data.location);
-          if (parsed && typeof parsed === 'object') {
-            locAddr = parsed.address || '';
+          if (parsed && typeof parsed === "object") {
+            locAddr = parsed.address || "";
             if (parsed.latitude != null) locLat = parseFloat(parsed.latitude);
             if (parsed.longitude != null) locLon = parseFloat(parsed.longitude);
           } else {
@@ -48,14 +61,14 @@ export async function submitComplaint(req, res) {
         }
       }
 
-      if (!locAddr) locAddr = data.address || 'Reported Location';
+      if (!locAddr) locAddr = data.address || "Reported Location";
 
       complaint = new Complaint({
         complaintId: newId,
-        description: data.description || data.userNote || 'Civic issue report',
-        category: data.category || 'Pothole',
-        department: data.department || 'Roads & Public Works',
-        priority: data.priority || 'high',
+        description: data.description || data.userNote || "Civic issue report",
+        category: data.category || "Pothole",
+        department: data.department || "Roads & Public Works",
+        priority: data.priority || "high",
         location: {
           address: locAddr,
           latitude: locLat,
@@ -64,15 +77,15 @@ export async function submitComplaint(req, res) {
         address: locAddr,
         latitude: locLat,
         longitude: locLon,
-        user_name: data.userName || data.user_name || 'Citizen',
+        user_name: data.userName || data.user_name || "Citizen",
         user_email: userEmail,
-        imageUrl: data.imageUrl || '',
-        status: 'Submitted',
+        imageUrl: data.imageUrl || "",
+        status: "Submitted",
         history: [
           {
-            status: 'Submitted',
-            message: 'Complaint submitted by citizen',
-            updatedBy: 'Citizen',
+            status: "Submitted",
+            message: "Complaint submitted by citizen",
+            updatedBy: "Citizen",
             timestamp: new Date(),
           },
         ],
@@ -88,7 +101,7 @@ export async function submitComplaint(req, res) {
           priority: complaint.priority,
           department: complaint.department,
           description: complaint.description,
-          address: complaint.address || 'Reported Location',
+          address: complaint.address || "Reported Location",
           status: complaint.status,
         });
       }
@@ -96,7 +109,7 @@ export async function submitComplaint(req, res) {
       sendEmailNotification({
         incident_id: complaint.complaintId,
         category: complaint.category,
-        severity: (complaint.priority || 'MEDIUM').toUpperCase(),
+        severity: (complaint.priority || "MEDIUM").toUpperCase(),
         department: complaint.department,
         description: complaint.description,
       });
@@ -108,19 +121,21 @@ export async function submitComplaint(req, res) {
       if (data.latitude) complaint.latitude = parseFloat(data.latitude);
       if (data.longitude) complaint.longitude = parseFloat(data.longitude);
       if (data.address) complaint.address = data.address;
-      if (data.location && typeof data.location === 'object') {
+      if (data.location && typeof data.location === "object") {
         complaint.location = {
-          address: data.location.address || complaint.address || '',
-          latitude: parseFloat(data.location.latitude) || complaint.latitude || null,
-          longitude: parseFloat(data.location.longitude) || complaint.longitude || null,
+          address: data.location.address || complaint.address || "",
+          latitude:
+            parseFloat(data.location.latitude) || complaint.latitude || null,
+          longitude:
+            parseFloat(data.location.longitude) || complaint.longitude || null,
         };
       }
       if (data.status) complaint.status = data.status;
 
       complaint.history.push({
-        status: 'Submitted',
-        message: 'Complaint details finalized by citizen',
-        updatedBy: 'Citizen',
+        status: "Submitted",
+        message: "Complaint details finalized by citizen",
+        updatedBy: "Citizen",
         timestamp: new Date(),
       });
 
@@ -132,12 +147,12 @@ export async function submitComplaint(req, res) {
       complaintId: complaint.complaintId,
       incident_id: complaint.incident_id || complaint.complaintId,
       status: complaint.status,
-      estimatedResolution: data.estimatedResolution || '2-3 days',
+      estimatedResolution: data.estimatedResolution || "2-3 days",
       complaint,
     });
   } catch (error) {
-    console.error('[ComplaintController] submitComplaint error:', error);
-    return res.status(500).json({ error: 'Failed to submit complaint' });
+    console.error("[ComplaintController] submitComplaint error:", error);
+    return res.status(500).json({ error: "Failed to submit complaint" });
   }
 }
 
@@ -151,9 +166,9 @@ export async function getComplaints(req, res) {
     const filter = {};
 
     if (email) filter.user_email = email.toLowerCase().trim();
-    if (status) filter.status = new RegExp(status, 'i');
-    if (priority) filter.priority = new RegExp(priority, 'i');
-    if (category) filter.category = new RegExp(category, 'i');
+    if (status) filter.status = new RegExp(status, "i");
+    if (priority) filter.priority = new RegExp(priority, "i");
+    if (category) filter.category = new RegExp(category, "i");
 
     const complaints = await Complaint.find(filter).sort({ createdAt: -1 });
 
@@ -163,8 +178,8 @@ export async function getComplaints(req, res) {
       complaints,
     });
   } catch (error) {
-    console.error('[ComplaintController] getComplaints error:', error);
-    return res.status(500).json({ error: 'Database read failed' });
+    console.error("[ComplaintController] getComplaints error:", error);
+    return res.status(500).json({ error: "Database read failed" });
   }
 }
 
@@ -175,8 +190,8 @@ export async function getComplaints(req, res) {
 export async function getComplaintById(req, res) {
   try {
     const id = req.params.id;
-    const email = (req.query.email || '').trim().toLowerCase();
-    if (!id) return res.status(400).json({ error: 'Missing complaint ID' });
+    const email = (req.query.email || "").trim().toLowerCase();
+    if (!id) return res.status(400).json({ error: "Missing complaint ID" });
 
     let complaint = await Complaint.findOne({ complaintId: id });
 
@@ -193,13 +208,13 @@ export async function getComplaintById(req, res) {
     }
 
     if (!complaint) {
-      return res.status(404).json({ error: 'Complaint not found' });
+      return res.status(404).json({ error: "Complaint not found" });
     }
 
     return res.status(200).json(complaint);
   } catch (error) {
-    console.error('[ComplaintController] getComplaintById error:', error);
-    return res.status(500).json({ error: 'Database read failed' });
+    console.error("[ComplaintController] getComplaintById error:", error);
+    return res.status(500).json({ error: "Database read failed" });
   }
 }
 
@@ -210,35 +225,71 @@ export async function getComplaintById(req, res) {
 export async function updateComplaintStatus(req, res) {
   try {
     const id = req.params.id;
-    const { status: newStatus, department: newDepartment, message: customMessage } = req.body || {};
+    const file = req.file;
+    const {
+      status: newStatus,
+      department: newDepartment,
+      message: customMessage,
+      resolutionNote,
+    } = req.body || {};
 
-    if (!id) return res.status(400).json({ error: 'Missing complaint ID' });
+    if (!id) return res.status(400).json({ error: "Missing complaint ID" });
 
     let complaint = await Complaint.findOne({ complaintId: id });
     if (!complaint) complaint = await Complaint.findOne({ incident_id: id });
-    if (!complaint && id.match(/^[0-9a-fA-F]{24}$/)) complaint = await Complaint.findById(id);
+    if (!complaint && id.match(/^[0-9a-fA-F]{24}$/))
+      complaint = await Complaint.findById(id);
 
     if (!complaint) {
-      return res.status(404).json({ error: 'Complaint record not found' });
+      return res.status(404).json({ error: "Complaint record not found" });
+    }
+
+    let resolvedImageUrl = req.body?.resolvedImageUrl || "";
+    if (file) {
+      resolvedImageUrl = `/uploads/${file.filename}`;
+      if (file.path) {
+        const cloudinaryResult = await uploadToCloudinary(
+          file.path,
+          "civicflow-resolutions",
+        );
+        if (cloudinaryResult?.secure_url) {
+          resolvedImageUrl = cloudinaryResult.secure_url;
+        }
+      }
     }
 
     if (newStatus) {
       complaint.status = newStatus;
-      if (['resolved', 'closed', 'Resolved', 'Closed'].includes(newStatus)) {
+      if (["resolved", "closed", "Resolved", "Closed"].includes(newStatus)) {
         complaint.resolvedAt = new Date();
+        if (resolvedImageUrl) complaint.resolvedImageUrl = resolvedImageUrl;
+        if (resolutionNote) complaint.resolutionNote = resolutionNote;
       }
+    }
+
+    if (resolvedImageUrl && !complaint.resolvedImageUrl) {
+      complaint.resolvedImageUrl = resolvedImageUrl;
+    }
+    if (resolutionNote && !complaint.resolutionNote) {
+      complaint.resolutionNote = resolutionNote;
     }
 
     if (newDepartment) {
       complaint.department = newDepartment;
     }
 
-    const logMessage = customMessage || `Status updated to ${newStatus || complaint.status}${newDepartment ? ` & assigned to ${newDepartment}` : ''}`;
+    const logMessage =
+      customMessage ||
+      ((newStatus === "Resolved" || complaint.status === "Resolved") &&
+      resolutionNote
+        ? `Issue marked resolved by department: ${resolutionNote}`
+        : `Status updated to ${newStatus || complaint.status}${newDepartment ? ` & assigned to ${newDepartment}` : ""}`);
 
     complaint.history.push({
       status: newStatus || complaint.status,
       message: logMessage,
-      updatedBy: req.user?.role || 'Admin',
+      imageUrl: resolvedImageUrl || "",
+      updatedBy: req.user?.role || "Admin",
       timestamp: new Date(),
     });
 
@@ -256,9 +307,10 @@ export async function updateComplaintStatus(req, res) {
       success: true,
       message: `Complaint ${complaint.complaintId} updated successfully`,
       updatedRecord: complaint,
+      complaint,
     });
   } catch (error) {
-    console.error('[ComplaintController] updateComplaintStatus error:', error);
-    return res.status(500).json({ error: 'Failed to update complaint status' });
+    console.error("[ComplaintController] updateComplaintStatus error:", error);
+    return res.status(500).json({ error: "Failed to update complaint status" });
   }
 }

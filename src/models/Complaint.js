@@ -1,4 +1,4 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
 const complaintSchema = new mongoose.Schema(
   {
@@ -14,35 +14,58 @@ const complaintSchema = new mongoose.Schema(
     },
     userId: {
       type: String,
-      default: 'anonymous',
+      default: "anonymous",
     },
     description: {
       type: String,
       required: true,
-      default: '',
+      default: "",
     },
     imageUrl: {
       type: String,
-      default: '',
+      default: "",
     },
     s3Key: {
       type: String,
-      default: '',
+      default: "",
     },
     category: {
       type: String,
       required: true,
-      enum: ['Pothole', 'Garbage', 'Streetlight', 'Water Leakage', 'Drainage', 'Road Damage', 'Other', 'pothole', 'garbage', 'streetlight', 'water', 'unknown', 'Unknown'],
-      default: 'Other',
+      enum: [
+        "Pothole",
+        "Garbage",
+        "Streetlight",
+        "Water Leakage",
+        "Drainage",
+        "Road Damage",
+        "Other",
+        "pothole",
+        "garbage",
+        "streetlight",
+        "water",
+        "unknown",
+        "Unknown",
+      ],
+      default: "Other",
     },
     department: {
       type: String,
-      default: 'Roads & Public Works',
+      default: "Roads & Public Works",
     },
     priority: {
       type: String,
-      enum: ['critical', 'high', 'medium', 'low', 'Critical', 'High', 'Medium', 'Low'],
-      default: 'medium',
+      enum: [
+        "critical",
+        "high",
+        "medium",
+        "low",
+        "Critical",
+        "High",
+        "Medium",
+        "Low",
+      ],
+      default: "medium",
     },
     priorityScore: {
       type: Number,
@@ -54,16 +77,16 @@ const complaintSchema = new mongoose.Schema(
     },
     aiReason: {
       type: String,
-      default: 'Analyzed by CivicFlow AI Multimodal Action Engine.',
+      default: "Analyzed by CivicFlow AI Multimodal Action Engine.",
     },
     aiSummary: {
       type: String,
-      default: '',
+      default: "",
     },
     location: {
       address: {
         type: String,
-        default: '',
+        default: "",
       },
       latitude: {
         type: Number,
@@ -76,7 +99,7 @@ const complaintSchema = new mongoose.Schema(
     },
     address: {
       type: String,
-      default: '',
+      default: "",
     },
     latitude: {
       type: Number,
@@ -88,8 +111,21 @@ const complaintSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['Submitted', 'AI Verified', 'Assigned', 'In Progress', 'Resolved', 'Rejected', 'submitted', 'assigned', 'in_progress', 'resolved', 'closed', 'Pending'],
-      default: 'Submitted',
+      enum: [
+        "Submitted",
+        "AI Verified",
+        "Assigned",
+        "In Progress",
+        "Resolved",
+        "Rejected",
+        "submitted",
+        "assigned",
+        "in_progress",
+        "resolved",
+        "closed",
+        "Pending",
+      ],
+      default: "Submitted",
     },
     reportCount: {
       type: Number,
@@ -106,14 +142,15 @@ const complaintSchema = new mongoose.Schema(
     history: [
       {
         status: { type: String, required: true },
-        message: { type: String, default: '' },
-        updatedBy: { type: String, default: 'System' },
+        message: { type: String, default: "" },
+        imageUrl: { type: String, default: "" },
+        updatedBy: { type: String, default: "System" },
         timestamp: { type: Date, default: Date.now },
       },
     ],
     user_name: {
       type: String,
-      default: 'Citizen',
+      default: "Citizen",
     },
     user_email: {
       type: String,
@@ -124,12 +161,20 @@ const complaintSchema = new mongoose.Schema(
     },
     user_phone: {
       type: String,
-      default: '',
+      default: "",
       index: true,
     },
     user_note: {
       type: String,
-      default: '',
+      default: "",
+    },
+    resolvedImageUrl: {
+      type: String,
+      default: "",
+    },
+    resolutionNote: {
+      type: String,
+      default: "",
     },
     resolvedAt: {
       type: Date,
@@ -138,7 +183,7 @@ const complaintSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
-export const Complaint = mongoose.model('Complaint', complaintSchema);
+export const Complaint = mongoose.model("Complaint", complaintSchema);

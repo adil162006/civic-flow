@@ -1,4 +1,4 @@
-import { Complaint } from '../models/Complaint.js';
+import { Complaint } from "../models/Complaint.js";
 
 const NEARBY_THRESHOLD_DEG = 0.01; // ~1km radius
 
@@ -16,23 +16,38 @@ const NEARBY_THRESHOLD_DEG = 0.01; // ~1km radius
  *   message: string
  * }>}
  */
-export async function checkForDuplicateComplaint({ category, latitude = null, longitude = null, location = '' }) {
+export async function checkForDuplicateComplaint({
+  category,
+  latitude = null,
+  longitude = null,
+  location = "",
+}) {
   try {
     const filter = {
-      status: { $ne: 'Resolved' },
+      status: { $ne: "Resolved" },
     };
 
     if (category) {
-      filter.category = new RegExp(category, 'i');
+      filter.category = new RegExp(category, "i");
     }
 
     if (latitude && longitude) {
-      filter.latitude = { $gte: latitude - NEARBY_THRESHOLD_DEG, $lte: latitude + NEARBY_THRESHOLD_DEG };
-      filter.longitude = { $gte: longitude - NEARBY_THRESHOLD_DEG, $lte: longitude + NEARBY_THRESHOLD_DEG };
+      filter.latitude = {
+        $gte: latitude - NEARBY_THRESHOLD_DEG,
+        $lte: latitude + NEARBY_THRESHOLD_DEG,
+      };
+      filter.longitude = {
+        $gte: longitude - NEARBY_THRESHOLD_DEG,
+        $lte: longitude + NEARBY_THRESHOLD_DEG,
+      };
     } else if (location && location.trim().length > 3) {
-      filter.location = new RegExp(location.trim(), 'i');
+      filter.location = new RegExp(location.trim(), "i");
     } else {
-      return { isDuplicate: false, possibleDuplicate: null, message: 'No duplicate found.' };
+      return {
+        isDuplicate: false,
+        possibleDuplicate: null,
+        message: "No duplicate found.",
+      };
     }
 
     const existing = await Complaint.findOne(filter).sort({ createdAt: -1 });
@@ -41,13 +56,22 @@ export async function checkForDuplicateComplaint({ category, latitude = null, lo
       return {
         isDuplicate: true,
         possibleDuplicate: existing,
-        message: 'This issue may already have been reported by another citizen.',
+        message:
+          "This issue may already have been reported by another citizen.",
       };
     }
 
-    return { isDuplicate: false, possibleDuplicate: null, message: 'No duplicate found.' };
+    return {
+      isDuplicate: false,
+      possibleDuplicate: null,
+      message: "No duplicate found.",
+    };
   } catch (error) {
-    console.warn('[DuplicateDetector] Scan warning:', error.message);
-    return { isDuplicate: false, possibleDuplicate: null, message: 'No duplicate found.' };
+    console.warn("[DuplicateDetector] Scan warning:", error.message);
+    return {
+      isDuplicate: false,
+      possibleDuplicate: null,
+      message: "No duplicate found.",
+    };
   }
 }

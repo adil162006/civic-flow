@@ -2,7 +2,7 @@ import express from 'express';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
-import { handlePresignUpload, handleDirectUpload } from '../controllers/uploadController.js';
+import { handlePresignUpload, handleDirectUpload, handleRephraseDescription } from '../controllers/uploadController.js';
 
 const router = express.Router();
 
@@ -30,6 +30,7 @@ const upload = multer({
 });
 
 // Routes
+router.post('/rephrase', handleRephraseDescription);
 router.post('/presign', handlePresignUpload);
 router.post('/', upload.single('image'), handleDirectUpload);
 router.post('/direct/:id', upload.single('image'), handleDirectUpload);
